@@ -39,11 +39,9 @@ plt.plot(wn,sp)
 for j in range(len(peaks)):
     i=peaks[j]
     plt.annotate(np.round(wn[i],1),xy=(wn[i],sp[i]+0.015),xytext=(wn[i],sp[i]+0.1),rotation=90,arrowprops=dict(arrowstyle="->"))
+plt.text(0.9*max(wn),0.8*max(sp),("nb of peaks:", str(len(peaks))))
 plt.ylim([0,max(sp)*1.2])
 plt.show()
 
-plt.text(0.9*max(wn),0.8*max(sp),("nb of peaks:", str(len(peaks))))
-plt.ylim([0,max(sp)+0.2])
-plt.show()
-
+#export result
 out_data=peak_positions
