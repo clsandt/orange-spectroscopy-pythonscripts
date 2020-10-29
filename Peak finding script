@@ -1,0 +1,49 @@
+"""
+Created on Wed Oct 28 11:07:30 2020
+This script finds peaks in a single spectrum. It uses the scipy.signal find_peak function that is based on simple neighbour comparison. 
+It allows setting the peak min and max heights and a "sensitivity" factor that is the min distance between peaks on the frequency axis. 
+The last part plots the spectrum and shows the peaks.
+
+@author: SANDT
+"""
+
+import numpy as np
+from copy import deepcopy
+from scipy.signal import find_peaks
+from matplotlib import pyplot as plt
+from orangecontrib.spectroscopy.data import getx
+
+#import data
+data=deepcopy(in_data.X)
+sp=data[0]
+if data.shape[0]>1:
+ sp=in_data.X[0,:]   
+
+wn=getx(in_data)
+
+#parameters for peak finding
+minpht=0.15 # minimum height of the peaks
+maxpht=max(sp)+1 #max height of the peaks
+sst=10 # "sensitivity": min distance between peaks (>=1), would require a slider from 1 to 50
+print("frequency axis: ",wn.shape)
+
+#find peaks
+peaks,properties=find_peaks(sp.T,height=[minpht,maxpht],distance=sst,width=None,plateau_size=None) #the width and plateau_size parameters are here to enable storing the peak propertie values in the 'properties'
+print("peak indices: ",peaks) #indices of the peaks
+
+peak_positions=wn[peaks]
+print("peak positions: ",peak_positions) #wavenumbers of the peaks
+
+#display peaks (not for widget)
+plt.plot(wn,sp)
+for j in range(len(peaks)):
+    i=peaks[j]
+    plt.annotate(np.round(wn[i],1),xy=(wn[i],sp[i]+0.015),xytext=(wn[i],sp[i]+0.1),rotation=90,arrowprops=dict(arrowstyle="->"))
+plt.ylim([0,max(sp)*1.2])
+plt.show()
+
+plt.text(0.9*max(wn),0.8*max(sp),("nb of peaks:", str(len(peaks))))
+plt.ylim([0,max(sp)+0.2])
+plt.show()
+
+out_data=peak_positions
