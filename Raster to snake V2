@@ -18,7 +18,8 @@ nR=30 #number of rows in the image
 nC=26 #number of columns in the image
 
 if nR*nC==nT:
-    snakeorder=np.reshape(range(nT),(nR,nC))
+    #snakeorder=np.reshape(range(nT),(nR,nC))
+    snakeorder=np.arange(nT).reshape(nR,nC))
     snakereorder[1::2]=np.fliplr(snakereorder[1::2])
     out_data.X=out_data.X[np.ravel(snakeorder)]
 else:
