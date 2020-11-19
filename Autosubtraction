@@ -1,0 +1,75 @@
+"""Script for subtraction of a reference spectrum from a set of spectra with automatic subtraction factor determination and baseline correction in the subtraction region
+## needs wavenumbers for the borns of the subtraction region (wn1, wn2) and a wavenumber for the peak center (wn3)
+### correct the subtraction region with a linear baseline betwenn wn1 and wn2
+#### uses the scipy optimize module fmin for finding the subtraction factor
+##### only subtracts if the subtraction factor is >0
+###### use deepcopy() to avoid replacing the original data by the treated dat and generate a processing loop
+####### check whether the reference is in in_datas[1] and exchange in_datas[0] and in_datas[1] if not. 
+That could cause problem if trying to subtract from a single spectrum instead of an array of spectra.
+
+@sandt
+"""
+
+print(in_datas[0].X.shape)
+print(in_datas[1].X.shape)
+import scipy.optimize
+import numpy as np
+from copy import deepcopy
+
+
+####### check reference in_datas[1]
+if in_datas[1].X.shape[0] !=1 and in_datas[0].X.shape[0]==1:
+    intermediate_reference=deepcopy(in_datas[0])
+    in_datas[0]=deepcopy(in_datas[1])
+    in_datas[1]=deepcopy(intermediate_reference)
+
+out_data = deepcopy(in_datas[0])
+
+# Borns for subtraction
+wn1=1200
+wn2=1350    
+wn3=1240        
+
+from orangecontrib.spectroscopy.data import getx
+
+wns_data = getx(in_datas[0])
+
+def nearest_index(array, n): return np.argmin(np.abs(array - n))
+
+id1 = nearest_index(wns_data, wn1) #peak boundary 1
+id2 = nearest_index(wns_data, wn2) #peak boundary 2
+id3 = nearest_index(wns_data, wn3) # position of the peak center for initial guess
+
+#Baseline correction
+sub_peak=deepcopy(in_datas[0].X[:,id1:id2])
+lastid=sub_peak.shape[1]-1 #could probbaly be replaced by -1 in the y0=[sub_peak[i,0],sub_peak[i,lastid]] line
+
+#reference baseline correction
+x1=[wns_data[id1],wns_data[id2]]
+y1=[in_datas[1].X[0,id1],in_datas[1].X[0,id2]]
+p1=np.polyfit(x1,y1,1)
+ldb1=np.polyval(p1,wns_data[id1:id2]) #baseline for correction of the reference peak
+reference=in_datas[1].X[0,id1:id2]-np.transpose(ldb1) # correction of the reference peak
+
+# baseline correction of the subtraction region in the dataset
+x0=[wns_data[id1],wns_data[id2]]
+
+for i in range(in_datas[0].X.shape[0]):
+    y0=[sub_peak[i,0],sub_peak[i,lastid]]
+    p0=np.polyfit(x0,y0,1)
+    ldb0=np.polyval(p0,wns_data[id1:id2])
+    sub_peak[i,:]=sub_peak[i,:]-ldb0
+    
+#subtraction
+for i in range(in_datas[0].X.shape[0]):
+    #soustraction function
+    def f(x): return np.sum((sub_peak[i,:]-x*reference)**2)
+    # finding initial subtraction factor
+    ifx=in_datas[0].X[i,id3]/in_datas[1].X[0,id3]
+    print("initial guess",ifx)
+    #fonction d'optimisation
+    sf=scipy.optimize.fmin(f,ifx)
+    print("sub factor",sf)
+    
+    if sf>0: #only perform a subtraction if the factor is positive since it can sometime go negative 
+        out_data.X[i,:] = in_datas[0].X[i,:]-sf*in_datas[1].X
