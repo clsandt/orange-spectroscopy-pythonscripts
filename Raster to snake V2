@@ -1,0 +1,27 @@
+"""
+This scripts reorders spectral maps  that have been recorded in snake instead of raster mode
+It must be used upstream of a reshape map
+
+Takes the number of rows and columns in the nR and nCol variables
+"""
+
+import numpy as np
+from copy import deepcopy
+
+print(in_data.X.shape)
+
+out_data = deepcopy(in_data)
+
+#size of the map, the nR and nCol are given by the user    
+nT=in_data.X.shape[0] #number of spectra in the image
+nR=30 #number of rows in the image
+nC=26 #number of columns in the image
+
+if nR*nC==nT:
+    #snakeorder=np.reshape(range(nT),(nR,nC))
+    snakeorder=np.arange(nT).reshape(nR,nC))
+    snakereorder[1::2]=np.fliplr(snakereorder[1::2])
+    out_data.X=out_data.X[np.ravel(snakeorder)]
+else:
+    print('nb of columns or rows is wrong')
+    
