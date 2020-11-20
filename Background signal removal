@@ -1,0 +1,23 @@
+"""
+Background signal removal 
+Script to find the closest spectrum among the spectra from a second array 
+and perform a subtraction between the two spectra
+"""
+
+import numpy as np
+from copy import deepcopy
+#from scipy import spatialdistance
+
+print("input data shape", in_datas[0].X.shape,  "reference data shape", in_datas[1].X.shape, )
+out_data=deepcopy(in_datas[0])
+
+def distance(array,spectrum): return np.sum((array-spectrum)**2,axis=1)
+
+for i in range(in_datas[0].X.shape[0]):
+    dist=distance(in_datas[1].X,in_datas[0].X[i])
+ #   print(np.argmin(dist))
+    closest=np.argmin(dist)
+    #out_data.X[i]=in_datas[1].X[closest]
+    out_data.X[i]=in_datas[0].X[i]-in_datas[1].X[closest]
+
+
