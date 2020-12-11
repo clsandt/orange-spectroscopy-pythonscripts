@@ -2,7 +2,7 @@
 This scripts reorders spectral maps  that have been recorded in snake instead of raster mode
 It must be used upstream of a reshape map
 
-Takes the number of rows and columns in the nR and nCol variables
+Takes the number of rows and columns in the nR and nC variables
 """
 
 import numpy as np
