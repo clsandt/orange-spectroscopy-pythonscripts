@@ -1,0 +1,173 @@
+import numpy as np
+from matplotlib import pyplot as plt
+from lmfit import Model
+from lmfit import Parameters
+from lmfit.models import GaussianModel,PolynomialModel,LinearModel, gaussian, LorentzianModel,lorentzian, VoigtModel, voigt
+from scipy.signal import savgol_filter
+from orangecontrib.spectroscopy.data import getx
+from AnyQt.QtWidgets import QInputDialog, QMessageBox
+
+#Initial data
+xdata=getx(in_data)
+ydata=in_data.X.copy()
+yd2data=savgol_filter(ydata, window_length=7, polyorder=2, deriv=2, mode='interp', cval=0.0) 
+
+#%% User input
+
+#npks,v=QInputDialog.getInt(None, "Peak number","Enter a positive Integer",1,1,np.round(xdata.shape[0]/3))
+npks,v=QInputDialog.getInt(None, "Peak number","Enter a positive Integer",1,1,np.round(xdata.shape[0]/3)) #ask user for the number of peaks, max number of peak is one third of the number of points in the spectra
+
+#if npks>xdata.shape[0]/3:
+    #QMessageBox.about(None, "Warning", "The number of free parameters is higher than the degree of freedom.") #Check if the number of free parameters is greater than the number of freedom elevels, optional since a cap is already set on npks
+        
+initpp=np.zeros((npks,3)) #create an array to store initial peak parameters
+
+mdltyp,v=QInputDialog.getText(None,'Peak type','gaussian: g, lorentzian: l, voigt: v')
+while mdltyp not in {'g','l','v'}:
+    #print('this model is not recognized')
+     QMessageBox.about(None, "Warning", "This model is not recognized.")
+     mdltyp,v=QInputDialog.getText(None,'Peak type','gaussian: g, lorentzian: l, voigt: v')
+     
+    
+for i in range(0,npks):
+    initpp[i,1],v=QInputDialog.getDouble(None,"Peak center","Enter a value in cm-1")
+    while initpp[i,1]>max(xdata) or initpp[i,1]<min(xdata):
+        print('Error, the peak position must be comprised between',np.min(xdata), 'and ',np.max(xdata),'cm-1, try again')
+        initpp[i,1],v=QInputDialog.getDouble(None,"Peak center","Enter a value in cm-1")
+        
+    initpp[i,0],v=QInputDialog.getDouble(None,"Peak amplitude", "amplitude= height*width",0.1,0,np.max(ydata)*100,5) #peak amplitude (amplitude=area or heigth*FWHM, default value 0.1, min 0 max 10, number of decimals 5; usage of QInputDialog.getDouble(self,'window title,'text',default value,min,max,number of decimals)
+    
+    initpp[i,2],v=QInputDialog.getDouble(None,"Peak half-width", "Enter a value in cm-1",10,0,100,2)
+
+
+answer='y'
+essai=0    #nb of runs of the fit algorithm
+initpp0=initpp.copy()
+
+while answer in{'y','Y','yes','Yes','YES'}:    
+    if essai>=1:
+        initpp=initpp0*np.transpose([0.9+0.2*np.random.rand(npks),0.999+0.002*np.random.rand(npks),0.9+0.2*np.random.rand(npks)])
+        
+        
+    #%% generate the model
+
+    #Gaussian model
+    if mdltyp=='g':
+        
+        FM=GaussianModel(prefix="g0_")
+        pars=Parameters()
+        pars.update(FM.make_params())
+          
+        pars["g0_amplitude"].set(value=initpp[0,0],min=0,max=initpp[0,0]*10)
+        pars['g0_center'].set(value=initpp[0,1],min=initpp[0,1]-5,max=initpp[0,1]+5)
+        pars['g0_sigma'].set(value=initpp[0,2],min=initpp[0,2]*0.75,max=initpp[0,2]*1.5)
+        
+            
+        for i in range(1,npks):
+            g=GaussianModel(prefix="g{}_".format(i))
+            
+            pars.update(g.make_params())
+           
+            pars["g{}_amplitude".format(i)].set(value=initpp[i,0],min=0,max=initpp[0,0]*10)
+            pars['g{}_center'.format(i)].set(value=initpp[i,1],min=initpp[i,1]-5,max=initpp[i,1]+5)
+            pars['g{}_sigma'.format(i)].set(value=initpp[i,2],min=initpp[i,2]*0.75,max=initpp[i,2]*1.5)
+        
+            FM=FM+g
+    
+    #Lorentzian model
+    if mdltyp=='l':
+        
+        FM=LorentzianModel(prefix="l0_")
+        pars=Parameters()
+        pars.update(FM.make_params())
+          
+        pars["l0_amplitude"].set(value=initpp[0,0],min=0,max=initpp[0,0]*10)
+        pars['l0_center'].set(value=initpp[0,1],min=initpp[0,1]-5,max=initpp[0,1]+5)
+        pars['l0_sigma'].set(value=initpp[0,2],min=initpp[0,2]*0.75,max=initpp[0,2]*1.5)
+        
+            
+        for i in range(1,npks):
+            l=LorentzianModel(prefix="l{}_".format(i))
+            
+            pars.update(l.make_params())
+           
+            pars["l{}_amplitude".format(i)].set(value=initpp[i,0],min=0,max=initpp[i,0]*10)
+            pars['l{}_center'.format(i)].set(value=initpp[i,1],min=initpp[i,1]-5,max=initpp[i,1]+5)
+            pars['l{}_sigma'.format(i)].set(value=initpp[i,2],min=initpp[i,2]*0.75,max=initpp[i,2]*1.5)
+        
+            FM=FM+l  
+            
+    #Voigt model        
+    if mdltyp=='v':    
+        FM=VoigtModel(prefix="v0_")
+        pars=Parameters()
+        pars.update(FM.make_params())
+          
+        pars["v0_amplitude"].set(value=initpp[0,0],min=0,max=initpp[0,0]*10)
+        pars['v0_center'].set(value=initpp[0,1],min=initpp[0,1]-5,max=initpp[0,1]+5)
+        pars['v0_sigma'].set(value=initpp[0,2],min=initpp[0,2]*0.75,max=initpp[0,2]*1.5)
+        
+            
+        for i in range(1,npks):
+            v=VoigtModel(prefix="v{}_".format(i))
+            
+            pars.update(v.make_params())
+           
+            pars["v{}_amplitude".format(i)].set(value=initpp[i,0],min=0,max=initpp[i,0]*10)
+            
+            pars['v{}_center'.format(i)].set(value=initpp[i,1],min=initpp[i,1]-5,max=initpp[i,1]+5)
+                
+            pars['v{}_sigma'.format(i)].set(value=initpp[i,2],min=initpp[i,2]*0.75,max=initpp[i,2]*1.5)
+        
+            FM=FM+v
+        
+    #%%fit
+    result=FM.fit(ydata,pars,x=xdata) 		#perform the fit
+    print('Model #',essai,'\n')
+    print(result.fit_report())		#print the fit results in lmfit format
+    print('\n')
+    
+    comps = result.eval_components(x=xdata) #extract each of the components from the fit
+    residual=result.best_fit-ydata #compute the residual #compute the residual    
+    
+
+    #%%plots
+    fig=plt.figure(num=essai)
+    ax1=plt.subplot(1,2,1)
+    #ax1.plot(xdata,ydata.T,label='initial data',xdata,)
+    ax1.plot(xdata,ydata.T/np.max(ydata),xdata,yd2data.T/np.max(abs(yd2data)))
+        
+    ax2=plt.subplot(1,2,2)
+    ax2.plot(xdata,ydata.T,'.b',markersize=5,label="initial data")
+    ax2.plot(xdata,result.best_fit,'r',label='fit result')
+    ax2.plot(xdata,residual.T,'x',color='xkcd:orange',markersize=2,label='residual')
+    ax2.legend(loc='upper right')
+    ax2.set_xlabel("Wavenumber (cm$^{-1}$)",fontsize=16)
+    ax2.set_ylabel("Absorbance unit",fontsize=16)
+    
+    for i in range(npks):
+        ax2.plot(xdata,comps['{}{}_'.format(mdltyp,i)],'--g',label='g{}_'.format(i))
+        
+    
+    ax1.set_title('Initial data')
+    titlax2='Fit result',essai
+    ax2.set_title(titlax2)
+    
+    #ax2.set_title('Fit result',' # ',essai)
+    
+    plt.show()
+
+
+
+    answer,v=QInputDialog.getText(None,'Rerun fit?','(y/n)')
+    essai+=1
+    
+#%% peak areas and relative peak areas of the final fit
+
+peak_areas=[result.values[name] for name in result.values if name.find('amplitude')!=-1]
+peak_positions=[result.values[name] for name in result.values if name.find('center')!=-1]
+relative_peak_areas=np.round(peak_areas/np.sum(peak_areas)*100,2)
+print('Peak positions',np.round(peak_positions,2))
+print('Peak areas: ',peak_areas)
+print('Relative peak areas (%): ',relative_peak_areas)
+
